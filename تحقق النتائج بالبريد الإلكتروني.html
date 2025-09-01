@@ -1,0 +1,903 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>أوائل الدفعة</title>
+   <script src="https://cdn.tailwindcss.com"></script>
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+   <!-- Firebase Libraries -->
+   <script type="module">
+       import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+       import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+       import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+       // Firebase Configuration (DO NOT modify these lines)
+       const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+       const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+       const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+       // Initialize Firebase
+       const app = initializeApp(firebaseConfig);
+       const auth = getAuth(app);
+       const db = getFirestore(app);
+
+       // API Key for Gemini (Same security warning as before)
+       const API_KEY = "AIzaSyD94NBTlqp8myfBqoFtKpMUqpIfuNkFKRg";
+       const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
+
+       // Student Data
+       const studentsData = {
+           "220660": { name: "مينا نبيل عادل وديع", total: "971.5", percentage: "95.25%", rank: "1" },
+           "220062": { name: "أحمد عنتر محمد المهدي محمد", total: "970.5", percentage: "95.15%", rank: "2" },
+           "220143": { name: "المصطفى نبيل عبد القادر", total: "968", percentage: "94.90%", rank: "3" },
+           "220170": { name: "آية ناصر محمد محمد", total: "966", percentage: "94.71%", rank: "4" },
+           "223030": { name: "أمينة ناصر أحمد محمد الجبالي", total: "966", percentage: "94.71%", rank: "4" },
+           "220110": { name: "إسراء رجب جودة محمود", total: "963.5", percentage: "94.46%", rank: "5" },
+           "220004": { name: "إبرام إسحق إبراهيم سمسوم", total: "962", percentage: "94.31%", rank: "6" },
+           "220182": { name: "بسملة عاطف فتحي حسين", total: "958.5", percentage: "93.97%", rank: "7" },
+           "220100": { name: "أريهام سامي منير ايوب", total: "958", percentage: "93.92%", rank: "8" },
+           "220188": { name: "بلال ناصر عبد العظيم سلامة", total: "958", percentage: "93.92%", rank: "8" },
+           "220653": { name: "ميار محمد عطية عبد الوهاب عبد الرحمن", total: "957", percentage: "93.82%", rank: "9" },
+           "220152": { name: "إنجي عاطف سيد ذكي", total: "952", percentage: "93.33%", rank: "10" },
+           "220538": { name: "محمد معوض صبري محمد محمود", total: "950.5", percentage: "93.19%", rank: "11" },
+           "220387": { name: "علي أبو جمة حامد علي", total: "950", percentage: "93.14%", rank: "12" },
+           "220584": { name: "مريم خالد عربي معوض", total: "949.5", percentage: "93.09%", rank: "13" },
+           "220747": { name: "يوسف محمد عثمان محمد", total: "949", percentage: "93.04%", rank: "14" },
+           "220109": { name: "إسراء أنور إبراهيم عبد الحليم", total: "948.5", percentage: "92.99%", rank: "15" },
+           "220219": { name: "حبيبة ماهر محمد جودة", total: "948.5", percentage: "92.99%", rank: "15" },
+           "220670": { name: "ندى أحمد أحمد عبد العليم", total: "946.5", percentage: "92.79%", rank: "16" },
+           "220245": { name: "رحمة أحمد محمد بهجت", total: "945.5", percentage: "92.70%", rank: "17" },
+           "220324": { name: "صفية عزت عبد الظاهر سيد", total: "942", percentage: "92.35%", rank: "18" },
+           "220471": { name: "محمد أشرف عبد السلام محمد", total: "941.5", percentage: "92.30%", rank: "19" },
+           "220507": { name: "محمد شوقي عبده عبد المنعم دسوقي", total: "941.5", percentage: "92.30%", rank: "19" },
+           "223044": { name: "سعيد عاطف سعيد عبد العليم", total: "941", percentage: "92.25%", rank: "20" },
+           "220534": { name: "محمد محمود محمد محمود", total: "940", percentage: "92.16%", rank: "21" },
+           "220569": { name: "مراد محمد عمار مراد", total: "940", percentage: "92.16%", rank: "21" },
+           "220623": { name: "منار محمود حجازي جودة", total: "940", percentage: "92.16%", rank: "21" },
+           "220236": { name: "داليا حامد عبد الحميد محمد", total: "939", percentage: "92.06%", rank: "22" },
+           "220675": { name: "ندى مرسي إبراهيم محمد مرسي", total: "939", percentage: "92.06%", rank: "22" },
+           "220087": { name: "أحمد نصر عبد المنجي زيدان", total: "938.5", percentage: "92.01%", rank: "23" },
+           "220171": { name: "إسراء عاطف صادق سعداوي", total: "938.5", percentage: "92.01%", rank: "23" },
+           "220012": { name: "أحمد إبراهيم حسن أبو طالب", total: "938", percentage: "91.96%", rank: "24" },
+           "220221": { name: "حبيبة محمد نجيب محمد عبد الجواد المصري", total: "938", percentage: "91.96%", rank: "24" },
+           "220688": { name: "نورهان ربيع عبد العزيز عبد الغني", total: "937.5", percentage: "91.91%", rank: "25" },
+           "220169": { name: "آية ناصر عبد العظيم عبد الرسول", total: "936.5", percentage: "91.81%", rank: "26" },
+           "220650": { name: "ميار أحمد محمد برعي", total: "936", percentage: "91.76%", rank: "27" },
+           "220184": { name: "بسملة محمد محمد عبد المجيد", total: "935", percentage: "91.67%", rank: "28" },
+           "220270": { name: "ريناد محمود عزت محمود", total: "935", percentage: "91.67%", rank: "28" },
+           "220686": { name: "نورهان أحمد عبد التواب عبده", total: "935", percentage: "91.67%", rank: "28" },
+           "220125": { name: "أسماء عبد الله حسين عبد الله", total: "934", percentage: "91.57%", rank: "29" },
+           "223005": { name: "أحمد حمدي زيدان عليان", total: "934", percentage: "91.57%", rank: "29" },
+           "220173": { name: "إيمان محمد عبد الفتاح محمد", total: "931.5", percentage: "91.32%", rank: "30" },
+           "220162": { name: "آية أحمد رمضان عبدالحكيم جاد طنطاوي", total: "931", percentage: "91.27%", rank: "31" },
+           "220177": { name: "أحمد مخلوف عبد المحسن عبد الحفيظ", total: "930.5", percentage: "91.23%", rank: "32" },
+           "220138": { name: "الأمين أحمد محمد خيري أمين", total: "930", percentage: "91.18%", rank: "33" },
+           "220284": { name: "سامر حنا سعد فهمي", total: "930", percentage: "91.18%", rank: "33" },
+           "220163": { name: "آية الله وليد عبد التواب عبد العزيز", total: "929.5", percentage: "91.13%", rank: "34" },
+           "220667": { name: "ندا حسام مصطفى حسن", total: "929.5", percentage: "91.13%", rank: "34" },
+           "220134": { name: "آلاء عوض عرابي عبد العزيز", total: "928.5", percentage: "91.03%", rank: "35" },
+           "220099": { name: "أروى ياسر ضيف الله عبد الحليم", total: "927.5", percentage: "90.93%", rank: "36" },
+           "220570": { name: "مرام أكمل حسين مرسي", total: "927.5", percentage: "90.93%", rank: "36" },
+           "220585": { name: "مريم شرف محمود أحمد", total: "927", percentage: "90.88%", rank: "37" },
+           "220648": { name: "مي مبروك شراقى عبد السلام", total: "926.5", percentage: "90.83%", rank: "38" },
+           "220168": { name: "آية محمد مصطفى محمد جاد", total: "924", percentage: "90.59%", rank: "39" },
+           "220666": { name: "نبيلة طلعت سليم زكي جرجس", total: "924", percentage: "90.59%", rank: "39" },
+           "220135": { name: "آلاء محمد محمود حسن", total: "923.5", percentage: "90.54%", rank: "40" },
+           "220191": { name: "بهاء حسني عبد العظيم طلب", total: "922.5", percentage: "90.44%", rank: "41" },
+           "220190": { name: "بنان محمد عبد الله محمد فرح", total: "920", percentage: "90.20%", rank: "42" },
+           "220164": { name: "آية رضا متولي حسين", total: "919.5", percentage: "90.15%", rank: "43" },
+           "220438": { name: "كريم وليد محمد عبد اللطيف", total: "919.5", percentage: "90.15%", rank: "43" },
+           "220669": { name: "نداء إبراهيم محمد إبراهيم", total: "919.5", percentage: "90.15%", rank: "43" },
+           "220692": { name: "نيرمين عماد حزين إسماعيل", total: "919.5", percentage: "90.15%", rank: "43" },
+           "220472": { name: "محمد أشرف عبد الله طه", total: "919", percentage: "90.10%", rank: "44" },
+           "220059": { name: "أحمد علي نور الدين صلاح أحمد", total: "918.5", percentage: "90.05%", rank: "45" },
+           "220132": { name: "آلاء عزت حسن إبراهيم", total: "918.5", percentage: "90.05%", rank: "45" },
+           "220237": { name: "دعاء إبراهيم أحمد عبد الله", total: "918", percentage: "90.00%", rank: "46" },
+           "220268": { name: "ريم عيد إبراهيم محمود", total: "917.5", percentage: "89.95%", rank: "47" },
+           "220296": { name: "سمية جمال عبد العال محمد", total: "917.5", percentage: "89.95%", rank: "47" },
+           "220572": { name: "مرام محي الدين زهران محمود", total: "916.5", percentage: "89.85%", rank: "48" },
+           "220658": { name: "مينا مسامح يوسف صادق", total: "916", percentage: "89.80%", rank: "49" },
+           "220239": { name: "دعاء جمال محمد أبو سريع", total: "915.5", percentage: "89.75%", rank: "50" },
+           "220567": { name: "محمود محمد قرني صوفي محمد", total: "915", percentage: "89.71%", rank: "51" },
+           "220186": { name: "بسنت هشام محمد حامد", total: "914.5", percentage: "89.66%", rank: "52" },
+           "220477": { name: "محمد أيمن علي شمس الدين", total: "914.5", percentage: "89.66%", rank: "52" },
+           "220499": { name: "محمد سمير فتحي عبد العزيز", total: "914.5", percentage: "89.66%", rank: "52" },
+           "223002": { name: "آثار أشرف هاشم صابر", total: "914.5", percentage: "89.66%", rank: "52" },
+           "220019": { name: "أحمد إيهاب عبد الله ذكي عبد الله", total: "914", percentage: "89.61%", rank: "53" },
+           "220058": { name: "أحمد علي عابدين محمود", total: "914", percentage: "89.61%", rank: "53" },
+           "220253": { name: "رنا أيمن أحمد محمد بنداري", total: "914", percentage: "89.61%", rank: "53" },
+           "220269": { name: "ريم محمد حمدي علي حجاب", total: "914", percentage: "89.61%", rank: "53" },
+           "220601": { name: "مصطفى طارق سعد عبدالغفار", total: "913.5", percentage: "89.56%", rank: "54" },
+           "220685": { name: "نوران محمد حسن عبد الحميد", total: "913.5", percentage: "89.56%", rank: "54" },
+           "220068": { name: "أحمد كامل عبد الله كامل", total: "912.5", percentage: "89.46%", rank: "55" },
+           "220673": { name: "ندى عزت علي خلف", total: "912.5", percentage: "89.46%", rank: "55" },
+           "220026": { name: "أحمد حسن رمضان توني", total: "912", percentage: "89.41%", rank: "56" },
+           "220107": { name: "إسراء أحمد جمعة محمد", total: "912", percentage: "89.41%", rank: "56" },
+           "220720": { name: "يمنى طه أحمد محمد", total: "912", percentage: "89.41%", rank: "56" },
+           "223003": { name: "آثار فتحي عبد الله محمد", total: "912", percentage: "89.41%", rank: "56" },
+           "220218": { name: "حبيبة جمال كامل الضوي", total: "911.5", percentage: "89.36%", rank: "57" },
+           "220252": { name: "رنا أيمن عبد الغني قرني", total: "911.5", percentage: "89.36%", rank: "57" },
+           "220586": { name: "مريم طارق مصطفى كامل", total: "911.5", percentage: "89.36%", rank: "57" },
+           "220644": { name: "مهند عرفة محمد خليل", total: "911.5", percentage: "89.36%", rank: "57" },
+           "223009": { name: "أحمد قاسم طه أحمد", total: "910", percentage: "89.22%", rank: "58" },
+           "220626": { name: "منة أحمد صادق أحمد", total: "909.5", percentage: "89.17%", rank: "59" },
+           "220741": { name: "يوسف عمر حمدي راضي", total: "907.5", percentage: "88.97%", rank: "60" },
+           "220622": { name: "منار محمود إبراهيم حسين", total: "907", percentage: "88.92%", rank: "61" },
+           "220300": { name: "سهيلة حسن عبد المنعم محمود", total: "906.5", percentage: "88.87%", rank: "62" },
+           "220367": { name: "عبد الرحمن ناصر علي أمين", total: "906.5", percentage: "88.87%", rank: "62" },
+           "220037": { name: "أحمد رمضان هديب عبد المنعم", total: "906", percentage: "88.82%", rank: "63" },
+           "220148": { name: "أميرة مجدي صدقي حسان", total: "906", percentage: "88.82%", rank: "63" },
+           "220279": { name: "سارة أحمد سعد عباس", total: "906", percentage: "88.82%", rank: "63" },
+           "220391": { name: "علي عبد اللطيف عبد العظيم عبد اللطيف", total: "906", percentage: "88.82%", rank: "63" },
+           "220564": { name: "محمود عصام محمود عبد السلام", total: "906", percentage: "88.82%", rank: "63" },
+           "220611": { name: "مصطفى ناصر حسن مصطفى", total: "906", percentage: "88.82%", rank: "63" },
+           "220742": { name: "يوسف عيد السيد عثمان", total: "906", percentage: "88.82%", rank: "63" },
+           "220457": { name: "محمد أحمد شعبان راتب", total: "905.5", percentage: "88.77%", rank: "64" },
+           "220582": { name: "مريم حسين إمام حسان", total: "904.5", percentage: "88.68%", rank: "65" },
+           "220285": { name: "ساندي أشرف بشرى إسحق", total: "904", percentage: "88.63%", rank: "66" },
+           "220074": { name: "أحمد محمد شعبان عيسى", total: "903", percentage: "88.53%", rank: "67" },
+           "220133": { name: "آلاء عمر حسن بدوي", total: "902.5", percentage: "88.48%", rank: "68" },
+           "220235": { name: "خلود محمد إسماعيل شاكر", total: "902.5", percentage: "88.48%", rank: "68" },
+           "220531": { name: "محمد محمد جودة تمام", total: "902.5", percentage: "88.48%", rank: "68" },
+           "220016": { name: "أحمد السيد عيد عبد الحميد", total: "902", percentage: "88.43%", rank: "69" },
+           "220044": { name: "أحمد صلاح محمد جمعة أبو زيد", total: "902", percentage: "88.43%", rank: "69" },
+           "220111": { name: "إسراء سمير أحمد حسين الشرقاوي", total: "902", percentage: "88.43%", rank: "69" },
+           "220598": { name: "مصطفى حسين موسى محمد", total: "901.5", percentage: "88.38%", rank: "70" },
+           "220603": { name: "مصطفى علاء الدين فتح الله يسن", total: "901.5", percentage: "88.38%", rank: "70" },
+           "220469": { name: "محمد أسامة محمد موسى", total: "901", percentage: "88.33%", rank: "71" },
+           "220652": { name: "ميار عبد الوهاب محمد عبد الوهاب", total: "901", percentage: "88.33%", rank: "71" },
+           "220661": { name: "مينا وائل الفى ميخائيل سيف", total: "901", percentage: "88.33%", rank: "71" },
+           "220718": { name: "يحيى عماد محمود عبد المنعم", total: "901", percentage: "88.33%", rank: "71" },
+           "220244": { name: "رحاب عبد السلام عنتر عبد السلام", total: "900.5", percentage: "88.28%", rank: "72" },
+           "220495": { name: "محمد رمضان عويس معوض", total: "900.5", percentage: "88.28%", rank: "72" },
+           "220033": { name: "أحمد خالد سعد كامل", total: "899.5", percentage: "88.19%", rank: "73" },
+           "220629": { name: "منة الله أحمد محمد عبد الرحمن", total: "899", percentage: "88.14%", rank: "74" },
+           "220271": { name: "ريهام عادل حمدي محمود", total: "898.5", percentage: "88.09%", rank: "75" },
+           "220061": { name: "أحمد عمر فؤاد عبد العظيم", total: "898", percentage: "88.04%", rank: "76" },
+           "220754": { name: "فاطمة عبد الله أحمد نصر", total: "898", percentage: "88.04%", rank: "76" },
+           "220396": { name: "علياء محمد جمعة محمد", total: "897.5", percentage: "87.99%", rank: "77" },
+           "220621": { name: "منار محمد محمد حسان", total: "897.5", percentage: "87.99%", rank: "77" },
+           "220366": { name: "عبد الرحمن نادي علي أحمد", total: "896.5", percentage: "87.89%", rank: "78" },
+           "220710": { name: "ولاء رمضان محمد محمد", total: "896.5", percentage: "87.89%", rank: "78" },
+           "220308": { name: "شادي محمد سيد طه", total: "896", percentage: "87.84%", rank: "79" },
+           "220488": { name: "محمد خالد طه أحمد", total: "896", percentage: "87.84%", rank: "79" },
+           "220213": { name: "حازم محمد إبراهيم حسن", total: "895.5", percentage: "87.79%", rank: "80" },
+           "220674": { name: "ندى عماد الدين أبو المعاطي يوسف", total: "895.5", percentage: "87.79%", rank: "80" },
+           "220142": { name: "الشيماء محمد عبد الجواد محمد", total: "895", percentage: "87.75%", rank: "81" },
+           "220141": { name: "الحسين محمد الزمقان موسى", total: "894", percentage: "87.65%", rank: "82" },
+           "220292": { name: "سلمى محمد رضا عبد العليم", total: "893.5", percentage: "87.60%", rank: "83" },
+           "220490": { name: "محمد ربيع جمعة عرفة", total: "892.5", percentage: "87.50%", rank: "84" },
+           "220725": { name: "يوسف إبراهيم خليدي إبراهيم", total: "892", percentage: "87.45%", rank: "85" },
+           "220203": { name: "جبرائيل بسالي فوزي باسيلي", total: "891.5", percentage: "87.40%", rank: "86" },
+           "220276": { name: "زياد حمدي محمد أحمد", total: "891.5", percentage: "87.40%", rank: "86" },
+           "220642": { name: "مهاب محمود جابر عيد", total: "891.5", percentage: "87.40%", rank: "86" },
+           "220265": { name: "رؤى حاتم جمعة محمد", total: "891", percentage: "87.35%", rank: "87" },
+           "220515": { name: "محمد عصمت صلاح محمود", total: "891", percentage: "87.35%", rank: "87" },
+           "220338": { name: "عبد الرحمن أحمد شوقي عثمان", total: "889", percentage: "87.16%", rank: "88" },
+           "220275": { name: "زياد السيد محمود مساعد", total: "886.5", percentage: "86.91%", rank: "89" },
+           "220521": { name: "محمد عماد الدين محمد حسب الله", total: "886.5", percentage: "86.91%", rank: "89" },
+           "220106": { name: "استيفين ملاك صلاح موسى", total: "886", percentage: "86.86%", rank: "90" },
+           "220405": { name: "عمر مصطفى محمد مرسي", total: "886", percentage: "86.86%", rank: "90" },
+           "220526": { name: "محمد عوض عمر عوض", total: "886", percentage: "86.86%", rank: "90" },
+           "220528": { name: "محمد فتحي شعبان سعداوي", total: "886", percentage: "86.86%", rank: "90" },
+           "220130": { name: "أفنان حسن عبد الرحيم حسن محمد", total: "885", percentage: "86.76%", rank: "91" },
+           "220325": { name: "ضياء أيمن السيد عارف", total: "885", percentage: "86.76%", rank: "91" },
+           "220701": { name: "هدير مجدي مصطفى أحمد", total: "885", percentage: "86.76%", rank: "91" },
+           "220313": { name: "شهد أحمد عبد الفتاح حامد", total: "884.5", percentage: "86.72%", rank: "92" },
+           "220502": { name: "محمد سيد محمد عبد الناصر", total: "884.5", percentage: "86.72%", rank: "92" },
+           "220424": { name: "فاطمة أحمد سعد الدين غديري", total: "884", percentage: "86.67%", rank: "93" },
+           "220709": { name: "وفاء محمد ثروت عبد العزيز محمد", total: "884", percentage: "86.67%", rank: "93" },
+           "220319": { name: "شهد محمد مبروك أحمد", total: "883.5", percentage: "86.62%", rank: "94" },
+           "220460": { name: "محمد أحمد فتحي إبراهيم", total: "883.5", percentage: "86.62%", rank: "94" },
+           "220729": { name: "يوسف بطرس يوسف بخيت", total: "883.5", percentage: "86.62%", rank: "94" },
+           "220309": { name: "شذا محمد محمود رياض", total: "883", percentage: "86.57%", rank: "95" },
+           "220537": { name: "محمد مصطفى علي عامر", total: "883", percentage: "86.57%", rank: "95" },
+           "220257": { name: "روان حافظ الكيلاني أحمد الديب", total: "882.5", percentage: "86.52%", rank: "96" },
+           "220360": { name: "عبد الرحمن محمد محمد أحمد", total: "881.5", percentage: "86.42%", rank: "97" },
+           "220242": { name: "رامز أحمد إبراهيم الصعيدي", total: "881", percentage: "86.37%", rank: "98" },
+           "220679": { name: "نور حسام أحمد محمد", total: "881", percentage: "86.37%", rank: "98" },
+           "220463": { name: "محمد أحمد محمد إبراهيم", total: "880.5", percentage: "86.32%", rank: "99" },
+           "220028": { name: "أحمد حسن محمد علي", total: "880", percentage: "86.27%", rank: "100" },
+           "220589": { name: "مريم مجدي نظير عزيز", total: "880", percentage: "86.27%", rank: "100" },
+           "220509": { name: "محمد طارق عبد الله أحمد", total: "879.5", percentage: "86.23%", rank: "101" },
+           "220064": { name: "أحمد فتحي عبد العظيم عبد الفتاح", total: "879", percentage: "86.18%", rank: "102" },
+           "220127": { name: "إسماعيل فرج قرني فرج", total: "878.5", percentage: "86.13%", rank: "103" },
+           "220140": { name: "الحسين فزاع علي محمد", total: "878.5", percentage: "86.13%", rank: "103" },
+           "220043": { name: "أحمد صبحي محمد رمضان", total: "878", percentage: "86.08%", rank: "104" },
+           "220411": { name: "عمرو صابر عبد الكريم وراد", total: "878", percentage: "86.08%", rank: "104" },
+           "220458": { name: "محمد أحمد عبد الجواد أحمد", total: "878", percentage: "86.08%", rank: "104" },
+           "220232": { name: "خالد علي شحاتة محمد", total: "877.5", percentage: "86.03%", rank: "105" },
+           "220336": { name: "عبد الحميد أحمد محمود سلامة", total: "877.5", percentage: "86.03%", rank: "105" },
+           "223052": { name: "عائشة عبد الرحمن سيد عبد العليم", total: "877.5", percentage: "86.03%", rank: "105" },
+           "220083": { name: "أحمد مدحت محمد سيد", total: "877", percentage: "85.98%", rank: "106" },
+           "220251": { name: "رنا أحمد مسعود سعد", total: "877", percentage: "85.98%", rank: "106" },
+           "220579": { name: "مريم إسحق كامل توفيق", total: "877", percentage: "85.98%", rank: "106" },
+           "220214": { name: "حازم محمد سليمان أحمد", total: "876.5", percentage: "85.93%", rank: "107" },
+           "220326": { name: "طارق أحمد حنفي محمود", total: "876.5", percentage: "85.93%", rank: "107" },
+           "220384": { name: "عبد الله محمود عبد العاطي محمد", total: "876", percentage: "85.88%", rank: "108" },
+           "220634": { name: "منة الله محمود أحمد", total: "876", percentage: "85.88%", rank: "108" },
+           "220013": { name: "أحمد إبراهيم سليم محمد صالح", total: "875.5", percentage: "85.83%", rank: "109" },
+           "220200": { name: "تسنيم صالح عبد الحميد عطية", total: "875.5", percentage: "85.83%", rank: "109" },
+           "220139": { name: "الحسين أشرف شوقي عثمان", total: "875", percentage: "85.78%", rank: "110" },
+           "220193": { name: "بيتر ماهر متى بشاي", total: "875", percentage: "85.78%", rank: "110" },
+           "220600": { name: "مصطفى دقدق عبد العال محمد", total: "875", percentage: "85.78%", rank: "110" },
+           "220610": { name: "مصطفى محمود محمد سرور الشيخ", total: "875", percentage: "85.78%", rank: "110" },
+           "220593": { name: "مصطفى أحمد شعبان بعيبر", total: "874.5", percentage: "85.74%", rank: "111" },
+           "220222": { name: "حبيبة مصطفى أبو المجد عبد الجليل", total: "874", percentage: "85.69%", rank: "112" },
+           "220321": { name: "شيماء سمير محمد مراد", total: "874", percentage: "85.69%", rank: "112" },
+           "220517": { name: "محمد علي أحمد صبري", total: "874", percentage: "85.69%", rank: "112" },
+           "220212": { name: "حاتم محمد سعداوي زكي", total: "873.5", percentage: "85.64%", rank: "113" },
+           "220637": { name: "منة خالد علي أحمد", total: "873.5", percentage: "85.64%", rank: "113" },
+           "223101": { name: "هاجر كمال عبد الوهاب عبد الله", total: "873.5", percentage: "85.64%", rank: "113" },
+           "220030": { name: "أحمد حمدناالله سليم سليمان", total: "873", percentage: "85.59%", rank: "114" },
+           "220449": { name: "ماريا محي إدوار عياد", total: "873", percentage: "85.59%", rank: "114" },
+           "220520": { name: "محمد عليو محمد أحمد", total: "873", percentage: "85.59%", rank: "114" },
+           "220241": { name: "دعاء عبد الفتاح محمد خضيري", total: "872.5", percentage: "85.54%", rank: "115" },
+           "220282": { name: "سارة غبريال فوزي سعد", total: "872.5", percentage: "85.54%", rank: "115" },
+           "220577": { name: "مروة شعبان محمد سليمان", total: "872.5", percentage: "85.54%", rank: "115" },
+           "220578": { name: "مريم أحمد علي عبد العزيز", total: "872.5", percentage: "85.54%", rank: "115" },
+           "220079": { name: "أحمد محمد فرغلي أمين", total: "872", percentage: "85.49%", rank: "116" },
+           "220227": { name: "حلا أشرف إسماعيل صوفي", total: "872", percentage: "85.49%", rank: "116" },
+           "220695": { name: "هاجر عبد العاطي جمعة عبد العاطي", total: "872", percentage: "85.49%", rank: "116" },
+           "220432": { name: "فرح أحمد محمد عبد الوهاب", total: "871.5", percentage: "85.44%", rank: "117" },
+           "220498": { name: "محمد سعيد أحمد ايوب", total: "871.5", percentage: "85.44%", rank: "117" },
+           "220022": { name: "أحمد جمال محمود محمد", total: "871", percentage: "85.39%", rank: "118" },
+           "220155": { name: "أنطونيوس صلاح جرجس عياد", total: "870.5", percentage: "85.34%", rank: "119" },
+           "220205": { name: "جنا جمال فكرى صابر جاب الله", total: "870", percentage: "85.29%", rank: "120" },
+           "223049": { name: "شريف يونس محمد عبد الظاهر", total: "870", percentage: "85.29%", rank: "120" },
+           "220425": { name: "فاطمة أحمد محمد الفولي عبد المنعم", total: "869.5", percentage: "85.25%", rank: "121" },
+           "220656": { name: "مينا ماجد فتحي نجيب", total: "869.5", percentage: "85.25%", rank: "121" },
+           "223075": { name: "محمد طرفآية جمعة عيد", total: "869.5", percentage: "85.25%", rank: "121" },
+           "220587": { name: "مريم عادل عشيري صالح", total: "869", percentage: "85.20%", rank: "122" },
+           "220689": { name: "نورهان فيصل محمد خليفة", total: "869", percentage: "85.20%", rank: "122" },
+           "220098": { name: "أروى عصام عطية عبد السميع", total: "868.5", percentage: "85.15%", rank: "123" },
+           "220320": { name: "شيماء سعيد محمد محمود", total: "868.5", percentage: "85.15%", rank: "123" },
+           "220383": { name: "عبد الله محمد عبد الله صادق", total: "868", percentage: "85.10%", rank: "124" },
+           "220441": { name: "كيرلس مجدي رؤوف شحاتة", total: "868", percentage: "85.10%", rank: "124" },
+           "220659": { name: "مينا ميلاد رؤف ميلاد", total: "867", percentage: "85.00%", rank: "125" },
+           "220009": { name: "إبراهيم رجب كامل محمد", total: "866.5", percentage: "84.95%", rank: "126" },
+           "220101": { name: "أسامة أيمن مصطفى عبد الرحمن", total: "866.5", percentage: "84.95%", rank: "126" },
+           "220113": { name: "إسراء كامل محمد عبد الرحمن", total: "866.5", percentage: "84.95%", rank: "126" },
+           "220194": { name: "بيشوي هاني أديب جرجس", total: "866.5", percentage: "84.95%", rank: "126" },
+           "220278": { name: "زياد محمد كامل محمد محمد", total: "866.5", percentage: "84.95%", rank: "126" },
+           "220418": { name: "عنود مجدي مصطفى جلول", total: "866.5", percentage: "84.95%", rank: "126" },
+           "220412": { name: "عمرو صبحي محمد عبد الفتاح قنديل", total: "866", percentage: "84.90%", rank: "127" },
+           "220445": { name: "لجين أحمد حسين محمد", total: "866", percentage: "84.90%", rank: "127" },
+           "220166": { name: "آية كمال عبد الدايم سيد", total: "865.5", percentage: "84.85%", rank: "128" },
+           "220311": { name: "شمس عيد عبد الحميد دمرداش", total: "865.5", percentage: "84.85%", rank: "128" },
+           "220206": { name: "جنى صبري فتحي محمد فراج", total: "865", percentage: "84.80%", rank: "129" },
+           "220220": { name: "حبيبة محمد صلاح محمد زكي", total: "864.5", percentage: "84.75%", rank: "130" },
+           "220312": { name: "شمس منتصر عبد العواض غرباوي", total: "864.5", percentage: "84.75%", rank: "130" },
+           "220696": { name: "هاجر علي عبد الجواد محمد", total: "864.5", percentage: "84.75%", rank: "130" },
+           "220717": { name: "يحيى أحمد الأحمدي الناطور", total: "864.5", percentage: "84.75%", rank: "130" },
+           "220248": { name: "رفيدة أيمن محمد توفيق", total: "864", percentage: "84.71%", rank: "131" },
+           "220535": { name: "محمد مصطفى شحاتة محمد", total: "863.5", percentage: "84.66%", rank: "132" },
+           "220095": { name: "أدهم الأمير أحمد متولي", total: "863", percentage: "84.61%", rank: "133" },
+           "220217": { name: "حامد أبو زيد صبحي محمد", total: "863", percentage: "84.61%", rank: "133" },
+           "220401": { name: "عمر شعبان محمود عبد المطلب", total: "863", percentage: "84.61%", rank: "133" },
+           "220716": { name: "يحى محمود انيس همام", total: "862.5", percentage: "84.56%", rank: "134" },
+           "220641": { name: "مهاب سيد عبد المنعم حسن", total: "862", percentage: "84.51%", rank: "135" },
+           "220215": { name: "حازم محمد صلاح أحمد", total: "861", percentage: "84.41%", rank: "136" },
+           "220293": { name: "سلمى محمد عمر مصري", total: "861", percentage: "84.41%", rank: "136" },
+           "220566": { name: "محمود لطفي محمود بهجات", total: "861", percentage: "84.41%", rank: "136" },
+           "220404": { name: "عمر محمد حسن عبد العزيز", total: "860", percentage: "84.31%", rank: "137" },
+           "220118": { name: "إسلام صبري أحمد متولي العتربي", total: "859", percentage: "84.22%", rank: "138" },
+           "223001": { name: "أبو عيطة محمد جمعة عبد الفتاح", total: "858.5", percentage: "84.17%", rank: "139" },
+           "220254": { name: "رنا خالد فاروق محمد", total: "858", percentage: "84.12%", rank: "140" },
+           "220281": { name: "سارة سيد عباس مبارك", total: "858", percentage: "84.12%", rank: "140" },
+           "220576": { name: "مروان محسن جمعة مصطفى", total: "858", percentage: "84.12%", rank: "140" },
+           "220159": { name: "إيمان مصطفى علي عجمي", total: "857.5", percentage: "84.07%", rank: "141" },
+           "220298": { name: "سهيلة إبراهيم عبد الستار حسن", total: "857.5", percentage: "84.07%", rank: "141" },
+           "220302": { name: "سهيلة ماهر حسن إبراهيم", total: "857.5", percentage: "84.07%", rank: "141" },
+           "220618": { name: "ملك إيهاب محمد عويس", total: "856.5", percentage: "83.97%", rank: "142" },
+           "220631": { name: "منة الله رمضان عبد الرحمن عبد الحفيظ", total: "856.5", percentage: "83.97%", rank: "142" },
+           "220225": { name: "حسام عبد الحميد عويس عيد", total: "856", percentage: "83.92%", rank: "143" },
+           "220330": { name: "عادل مجدي قرني حسين", total: "856", percentage: "83.92%", rank: "143" },
+           "220337": { name: "عبد الرحمن إبراهيم الشوادفي إبراهيم", total: "856", percentage: "83.92%", rank: "143" },
+           "220738": { name: "يوسف عاشور محمد عبد المالك الملوي", total: "856", percentage: "83.92%", rank: "143" },
+           "223004": { name: "أحمد جمال أمين عبد الجواد", total: "856", percentage: "83.92%", rank: "143" },
+           "220549": { name: "محمود إبراهيم سعيد عبد الوهاب", total: "855.5", percentage: "83.87%", rank: "144" },
+           "220208": { name: "جورج صموئيل غالي متى", total: "855", percentage: "83.82%", rank: "145" },
+           "220122": { name: "أسماء أحمد السعيد محمد حماد", total: "854.5", percentage: "83.77%", rank: "146" },
+           "223067": { name: "ليلى أحمد زايد محمد", total: "854.5", percentage: "83.77%", rank: "146" },
+           "220307": { name: "شادي سمير أديب عبد السيد", total: "854", percentage: "83.73%", rank: "147" },
+           "220592": { name: "مشيرة سمير سيد إبراهيم", total: "853", percentage: "83.63%", rank: "148" },
+           "220746": { name: "يوسف محمد عبد المنعم محمود", total: "853", percentage: "83.63%", rank: "148" },
+           "223008": { name: "أحمد علي نمر محمد", total: "853", percentage: "83.63%", rank: "148" },
+           "220161": { name: "آية أحمد خليل محمد سالم", total: "852", percentage: "83.53%", rank: "149" },
+           "220368": { name: "عبد الرحمن نصر الدين هاشم علي", total: "852", percentage: "83.53%", rank: "149" },
+           "220318": { name: "شهد ماجد حسين علي", total: "851.5", percentage: "83.48%", rank: "150" },
+           "220427": { name: "فاطمة الزهراء محمد محمود إسماعيل", total: "851", percentage: "83.43%", rank: "151" },
+           "220290": { name: "سلمى عماد أحمد مهدي", total: "850.5", percentage: "83.38%", rank: "152" },
+           "220748": { name: "يوسف محمد محمد حسين أبو رواش", total: "850.5", percentage: "83.38%", rank: "152" },
+           "220267": { name: "رؤى عبد الله محمد محمد", total: "850", percentage: "83.33%", rank: "153" },
+           "220541": { name: "محمد ناجى علي عيد", total: "850", percentage: "83.33%", rank: "153" },
+           "220727": { name: "يوسف الشاذلي محمد يوسف الشاذلي", total: "850", percentage: "83.33%", rank: "153" },
+           "220156": { name: "أوليفيا نبيل ثابت سعيد", total: "849.5", percentage: "83.28%", rank: "154" },
+           "220379": { name: "عبد الله صالح معوض عباس", total: "849.5", percentage: "83.28%", rank: "154" },
+           "220430": { name: "فتحي سيد فتحي سيد محمد", total: "848", percentage: "83.14%", rank: "155" },
+           "220545": { name: "محمد هشام مصطفى إبراهيم", total: "847.5", percentage: "83.09%", rank: "156" },
+           "220597": { name: "مصطفى جمال مصطفى محمد يحيى", total: "847.5", percentage: "83.09%", rank: "156" },
+           "220501": { name: "محمد سيد مجلي أبو سيف", total: "847", percentage: "83.04%", rank: "157" },
+           "220003": { name: "أبرار أحمد عبدالرؤف مختار", total: "846.5", percentage: "82.99%", rank: "158" },
+           "220341": { name: "عبد الرحمن السيد ربيع عبد العليم", total: "846.5", percentage: "82.99%", rank: "158" },
+           "223025": { name: "إلهام يسري محمد محمود", total: "846.5", percentage: "82.99%", rank: "158" },
+           "220065": { name: "أحمد فرج غرياني محمد", total: "845.5", percentage: "82.89%", rank: "159" },
+           "220121": { name: "سلمى ياسر محمد عبد المالك", total: "845.5", percentage: "82.89%", rank: "159" },
+           "220333": { name: "عاصم ربيع فرج الله أحمد", total: "845.5", percentage: "82.89%", rank: "159" },
+           "220390": { name: "علي رمضان علي عامر", total: "845.5", percentage: "82.89%", rank: "159" },
+           "220571": { name: "مرام محمود عبد الحميد سيف", total: "845.5", percentage: "82.89%", rank: "159" },
+           "220216": { name: "حازم هاني جمال دسوقي", total: "844.5", percentage: "82.79%", rank: "160" },
+           "220114": { name: "إسراء محمد عامر علي", total: "844", percentage: "82.75%", rank: "161" },
+           "220119": { name: "إسلام مرعى صابر حامد", total: "844", percentage: "82.75%", rank: "161" },
+           "220031": { name: "أحمد حمدي حسن رزق", total: "843", percentage: "82.65%", rank: "162" },
+           "220035": { name: "أحمد رجب إبراهيم الفخراني", total: "843", percentage: "82.65%", rank: "162" },
+           "220224": { name: "حسام الدين أحمد عبد النبي محمود", total: "843", percentage: "82.65%", rank: "162" },
+           "220264": { name: "رويدا طارق جابر يس", total: "843", percentage: "82.65%", rank: "162" },
+           "220160": { name: "أيمن إبراهيم أحمد شعبان", total: "842.5", percentage: "82.60%", rank: "163" },
+           "220703": { name: "هشام عبد الحميد فوزي عيسى", total: "842.5", percentage: "82.60%", rank: "163" },
+           "223060": { name: "علا شريف رمضان عبد الباري", total: "842.5", percentage: "82.60%", rank: "163" },
+           "220088": { name: "أحمد وائل محمد أحمد", total: "842", percentage: "82.55%", rank: "164" },
+           "220505": { name: "محمد سيد محمود محمد", total: "842", percentage: "82.55%", rank: "164" },
+           "220606": { name: "مصطفى محمد زكي مصطفى", total: "841.5", percentage: "82.50%", rank: "165" },
+           "220654": { name: "ميريت سامح فل صموئيل يوسف", total: "841.5", percentage: "82.50%", rank: "165" },
+           "220702": { name: "هشام إيهاب زكريا رشوان", total: "841.5", percentage: "82.50%", rank: "165" },
+           "220092": { name: "أحمد يسري أحمد إبراهيم سعد حمودة", total: "841", percentage: "82.45%", rank: "166" },
+           "220551": { name: "محمود أحمد محمد محمود", total: "841", percentage: "82.45%", rank: "166" },
+           "220211": { name: "جيسكا هاني فاروق بشرى", total: "840.5", percentage: "82.40%", rank: "167" },
+           "223043": { name: "سارة عبد الفتاح بدوي محمد", total: "840.5", percentage: "82.40%", rank: "167" },
+           "220643": { name: "مهرائيل وجيه نجاح غالي", total: "839.5", percentage: "82.30%", rank: "168" },
+           "220700": { name: "هبه طه عبد النعيم عبد الصمد", total: "839.5", percentage: "82.30%", rank: "168" },
+           "220657": { name: "مينا محسن وهيب ناشد", total: "839", percentage: "82.25%", rank: "169" },
+           "220737": { name: "يوسف عادل عباس أبو العلا شعبان", total: "838.5", percentage: "82.21%", rank: "170" },
+           "220048": { name: "أحمد عاطف عبد العظيم عباس", total: "838", percentage: "82.16%", rank: "171" },
+           "220189": { name: "بلال وليد يحيى عبد الحكم", total: "838", percentage: "82.16%", rank: "171" },
+           "220046": { name: "أحمد عادل حماد حميدة", total: "837.5", percentage: "82.11%", rank: "172" },
+           "220513": { name: "محمد عبد المنعم صلاح عيسى هيكل", total: "837.5", percentage: "82.11%", rank: "172" },
+           "220093": { name: "أحمد يوسف يوسف بريك مدكور", total: "837", percentage: "82.06%", rank: "173" },
+           "220274": { name: "زهراء محمد أحمد محمود", total: "837", percentage: "82.06%", rank: "173" },
+           "220357": { name: "عبد الرحمن محمد حسن حسين", total: "836.5", percentage: "82.01%", rank: "174" },
+           "220484": { name: "محمد حسين إسماعيل عبد اللطيف", total: "836.5", percentage: "82.01%", rank: "174" },
+           "220085": { name: "أحمد ممدوح عبد العزيز أبو الليل", total: "836", percentage: "81.96%", rank: "175" },
+           "220124": { name: "أسماء طارق لطفي محمد أبو رزة", total: "835.5", percentage: "81.91%", rank: "176" },
+           "220649": { name: "مي محمد إبراهيم موسى", total: "835.5", percentage: "81.91%", rank: "176" },
+           "223073": { name: "محمد راوي نوح صالح", total: "835.5", percentage: "81.91%", rank: "176" },
+           "220036": { name: "أحمد رمضان شعبان عبد الحفيظ", total: "835", percentage: "81.86%", rank: "177" },
+           "220314": { name: "شهد خالد محمد أبو سبع", total: "835", percentage: "81.86%", rank: "177" },
+           "220316": { name: "شهد عبد النبي عوض أبو النور", total: "835", percentage: "81.86%", rank: "177" },
+           "220655": { name: "ميسون علي عبد الرحمن بدران", total: "835", percentage: "81.86%", rank: "177" },
+           "220150": { name: "أمين حسن محمود أمين", total: "834.5", percentage: "81.81%", rank: "178" },
+           "220632": { name: "منة الله عاشور نصر الدين عبد اللطيف", total: "834", percentage: "81.76%", rank: "179" },
+           "220751": { name: "يوسف وليد محمد علي محمود", total: "834", percentage: "81.76%", rank: "179" },
+           "220627": { name: "منة الله أحمد حسن محمد", total: "833.5", percentage: "81.72%", rank: "180" },
+           "220672": { name: "ندى سيد محمد محمد", total: "833", percentage: "81.67%", rank: "181" },
+           "220734": { name: "يوسف شعبان أحمد محمد", total: "833", percentage: "81.67%", rank: "181" },
+           "223061": { name: "علي حامد محمود علي", total: "833", percentage: "81.67%", rank: "181" },
+           "220365": { name: "عبد الرحمن مليحي سعد محمد", total: "832.5", percentage: "81.62%", rank: "182" },
+           "220459": { name: "محمد أحمد علي حسن سعد", total: "832.5", percentage: "81.62%", rank: "182" },
+           "220721": { name: "يمنى محمد عبد الجبار حسن علي", total: "832.5", percentage: "81.62%", rank: "182" },
+           "220018": { name: "أحمد أيمن فتحي عبد الفتاح", total: "832", percentage: "81.57%", rank: "183" },
+           "220719": { name: "يمنى ربيع محمد طه", total: "832", percentage: "81.57%", rank: "183" },
+           "220209": { name: "جورج ناصف عبد المسيح يوسف", total: "831.5", percentage: "81.52%", rank: "184" },
+           "220399": { name: "عمر خالد عبد الله أحمد", total: "831.5", percentage: "81.52%", rank: "184" },
+           "220485": { name: "محمد حلمي عبد الله حلمي", total: "831.5", percentage: "81.52%", rank: "184" },
+           "220715": { name: "ياسمين محمود طه محمد", total: "831", percentage: "81.47%", rank: "185" },
+           "220195": { name: "تامر أيمن عبد السلام سيد", total: "830.5", percentage: "81.42%", rank: "186" },
+           "220402": { name: "عمر عبد العزيز خليل محمد", total: "830", percentage: "81.37%", rank: "187" },
+           "220226": { name: "حسن مأمون حسن مأمون", total: "829.5", percentage: "81.32%", rank: "188" },
+           "220255": { name: "رنا عصام صبحي عبد الفهيم", total: "829.5", percentage: "81.32%", rank: "188" },
+           "223084": { name: "محمود السعيد محمد منصور", total: "829.5", percentage: "81.32%", rank: "188" },
+           "220491": { name: "محمد ربيع عبد العليم سليمان", total: "828", percentage: "81.18%", rank: "189" },
+           "220181": { name: "بسملة خالد علي علي", total: "827.5", percentage: "81.13%", rank: "190" },
+           "220400": { name: "عمر سعيد مصطفى حسن", total: "827.5", percentage: "81.13%", rank: "190" },
+           "220452": { name: "مازن عبد الرازق علي الريدي", total: "827.5", percentage: "81.13%", rank: "190" },
+           "220511": { name: "محمد عبد الجواد يوسف عبد الجواد لطيف", total: "827.5", percentage: "81.13%", rank: "190" },
+           "220612": { name: "معتز شعبان محمد سلامة", total: "827.5", percentage: "81.13%", rank: "190" },
+           "220638": { name: "منة محمود فتحي إسماعيل", total: "827", percentage: "81.08%", rank: "191" },
+           "220201": { name: "تسنيم عمرو عبد الماجد أحمد", total: "826.5", percentage: "81.03%", rank: "192" },
+           "223108": { name: "يوسف محمد محمود أحمد", total: "826.5", percentage: "81.03%", rank: "192" },
+           "220647": { name: "مي سيد قرني محمد", total: "826", percentage: "80.98%", rank: "193" },
+           "223088": { name: "مرقس ميلاد وفيق ثابت", total: "826", percentage: "80.98%", rank: "193" },
+           "223064": { name: "كارم عبد الهادي خير الله سليمان", total: "825.5", percentage: "80.93%", rank: "194" },
+           "223048": { name: "سيد مهدي السيد عبد الهادي", total: "825", percentage: "80.88%", rank: "195" },
+           "220228": { name: "حمادة خالد عبد العليم عبد الجيد", total: "823.5", percentage: "80.74%", rank: "196" },
+           "220539": { name: "محمد منصور مصري عبد المنطلب", total: "823.5", percentage: "80.74%", rank: "196" },
+           "223082": { name: "محمد يسري كمال متولي", total: "823.5", percentage: "80.74%", rank: "196" },
+           "220417": { name: "عمرو ياسر فارس حامد", total: "823", percentage: "80.69%", rank: "197" },
+           "220454": { name: "مازن محمد زكي توفيق", total: "823", percentage: "80.69%", rank: "197" },
+           "220671": { name: "ندى أشرف نور الدين حسن", total: "823", percentage: "80.69%", rank: "197" },
+           "220025": { name: "أحمد حسن أحمد محمد", total: "821.5", percentage: "80.54%", rank: "198" },
+           "220301": { name: "سهيلة عزت ممدوح عيسى", total: "821.5", percentage: "80.54%", rank: "198" },
+           "220687": { name: "نورهان أحمد محمد أحمد بك", total: "821.5", percentage: "80.54%", rank: "198" },
+           "220704": { name: "هنا عادل محمد شاكر", total: "821.5", percentage: "80.54%", rank: "198" },
+           "220416": { name: "عمرو نبيل حسن عبد الحميد محمد", total: "820.5", percentage: "80.44%", rank: "199" },
+           "220616": { name: "مكاريوس مدحت فلتاؤوس حبيب", total: "820.5", percentage: "80.44%", rank: "199" },
+           "220640": { name: "مهاب أيمن أحمد عبد العال", total: "820.5", percentage: "80.44%", rank: "199" },
+           "220014": { name: "أحمد إبراهيم محمد عبد الرحيم", total: "820", percentage: "80.39%", rank: "200" },
+           "220176": { name: "أحمد محمد صلاح عمار", total: "820", percentage: "80.39%", rank: "200" },
+           "220745": { name: "يوسف محمد صباح محمد الأخطابي", total: "820", percentage: "80.39%", rank: "200" },
+           "220080": { name: "أحمد محمود طه عبد الرحمن", total: "819.5", percentage: "80.34%", rank: "201" },
+           "220378": { name: "عبد الله شحاتة محمد حسن", total: "819.5", percentage: "80.34%", rank: "201" },
+           "220464": { name: "محمد أحمد محمد أحمد هلال", total: "819.5", percentage: "80.34%", rank: "201" },
+           "220503": { name: "محمد سيد محمود إسماعيل", total: "819.5", percentage: "80.34%", rank: "201" },
+           "220305": { name: "سيف الدين هاني أحمد سيد محمد", total: "818.5", percentage: "80.25%", rank: "202" },
+           "223050": { name: "طارق محمد علي ميهوب", total: "818.5", percentage: "80.25%", rank: "202" },
+           "220690": { name: "نورهان محمد عبد الفتاح محمد", total: "818", percentage: "80.20%", rank: "203" },
+           "220136": { name: "آلاء مفتاح عويس أسعد سعيد", total: "817.5", percentage: "80.15%", rank: "204" },
+           "220722": { name: "يمنى مفتاح عبد العظيم مفتاح", total: "817", percentage: "80.10%", rank: "205" },
+           "223057": { name: "عبد الله محمد محمد أحمد", total: "817", percentage: "80.10%", rank: "205" },
+           "220123": { name: "أسماء شعبان طه سعيد أحمد", total: "816.5", percentage: "80.05%", rank: "206" },
+           "220108": { name: "إسراء أحمد محمود عثمان", total: "816", percentage: "80.00%", rank: "207" },
+           "223070": { name: "محمد أحمد كامل عبد العزيز", total: "816", percentage: "80.00%", rank: "207" },
+           "220070": { name: "أحمد محروس خلف عبد الشافي", total: "815.5", percentage: "79.95%", rank: "208" },
+           "220158": { name: "إيمان شعبان يوسف مصطفى", total: "815.5", percentage: "79.95%", rank: "208" },
+           "220699": { name: "هاميس أحمد حامد عبد العزيز وهدان", total: "815", percentage: "79.90%", rank: "209" },
+           "220331": { name: "عادل محمد إبراهيم أحمد", total: "814.5", percentage: "79.85%", rank: "210" },
+           "220544": { name: "محمد نصر خليفة السيد", total: "814.5", percentage: "79.85%", rank: "210" },
+           "220115": { name: "أسعد حسين عيسى محمد", total: "814", percentage: "79.80%", rank: "211" },
+           "220187": { name: "بلال علي عبد التواب علي أحمد", total: "814", percentage: "79.80%", rank: "211" },
+           "220559": { name: "محمود خالد شوقي يسن", total: "814", percentage: "79.80%", rank: "211" },
+           "220479": { name: "محمد جمال محمد أحمد", total: "813", percentage: "79.71%", rank: "212" },
+           "220633": { name: "منة الله محمد عبد الحميد محمد", total: "813", percentage: "79.71%", rank: "212" },
+           "220707": { name: "وصال عثمان أحمد الزهري", total: "813", percentage: "79.71%", rank: "212" },
+           "220246": { name: "رحمة جمال أحمد صادق", total: "812.5", percentage: "79.66%", rank: "213" },
+           "220398": { name: "عمر أيمن عمر حسن", total: "812.5", percentage: "79.66%", rank: "213" },
+           "220409": { name: "عمرو خالد محمد كامل أبو هرجة", total: "812.5", percentage: "79.66%", rank: "213" },
+           "220420": { name: "غادة محروس سيد حسين", total: "812.5", percentage: "79.66%", rank: "213" },
+           "220619": { name: "ملك ثابت عبد الباقي عبد الواحد حسن", total: "812.5", percentage: "79.66%", rank: "213" },
+           "223083": { name: "محمود أحمد محمد جاد الكريم", total: "812.5", percentage: "79.66%", rank: "213" },
+           "220435": { name: "كريم عصام أحمد علي العبادي", total: "810", percentage: "79.41%", rank: "214" },
+           "220481": { name: "محمد حاتم علوان عثمان", total: "809.5", percentage: "79.36%", rank: "215" },
+           "220558": { name: "محمود حامد مصطفى عبد الله", total: "809.5", percentage: "79.36%", rank: "215" },
+           "220662": { name: "مينا ياسر كامل عزيز", total: "808.5", percentage: "79.26%", rank: "216" },
+           "220552": { name: "محمود أحمد محمود عبد العليم عريف", total: "808", percentage: "79.22%", rank: "217" },
+           "220047": { name: "أحمد عادل يوسف محمد الخولي", total: "807.5", percentage: "79.17%", rank: "218" },
+           "220473": { name: "محمد السيد عبد ربه سالم علي علي", total: "807", percentage: "79.12%", rank: "219" },
+           "220041": { name: "أحمد سيد رجب علي جودة", total: "806.5", percentage: "79.07%", rank: "220" },
+           "220684": { name: "نور الهدى أحمد عباس عويس", total: "806", percentage: "79.02%", rank: "221" },
+           "220073": { name: "أحمد محمد جابر عبود", total: "805.5", percentage: "78.97%", rank: "222" },
+           "220561": { name: "محمود ربيع محروس بيومي", total: "805.5", percentage: "78.97%", rank: "222" },
+           "220681": { name: "نورا امره جارحي محمد", total: "805", percentage: "78.92%", rank: "223" },
+           "220394": { name: "علياء أشرف عبد العزيز مصطفى عبد العزيز", total: "804.5", percentage: "78.87%", rank: "224" },
+           "220736": { name: "يوسف طارق محمد محمد", total: "804.5", percentage: "78.87%", rank: "224" },
+           "220750": { name: "يوسف هاني جابر عبد الباقي", total: "803.5", percentage: "78.77%", rank: "225" },
+           "223106": { name: "يوسف صالح عيد خير الله", total: "803.5", percentage: "78.77%", rank: "225" },
+           "220034": { name: "أحمد ربيع أحمد عبد اللطيف", total: "803", percentage: "78.73%", rank: "226" },
+           "220724": { name: "يوستينا ماهر صموئيل إبراهيم", total: "803", percentage: "78.73%", rank: "226" },
+           "220002": { name: "أبانوب عادل إسحق لبيب", total: "802.5", percentage: "78.68%", rank: "227" },
+           "220128": { name: "إسماعيل محمد هاشم محمد", total: "802.5", percentage: "78.68%", rank: "227" },
+           "220240": { name: "دعاء حجازي محمد خلف", total: "802", percentage: "78.63%", rank: "228" },
+           "220410": { name: "عمرو رضا محمد حسين", total: "802", percentage: "78.63%", rank: "228" },
+           "220137": { name: "آلاء هلال أحمد عبد العظيم", total: "801.5", percentage: "78.58%", rank: "229" },
+           "220154": { name: "أنطون جرجس بشرى عوض", total: "801.5", percentage: "78.58%", rank: "229" },
+           "220607": { name: "مصطفى محمد مصطفى علي", total: "801", percentage: "78.53%", rank: "230" },
+           "220749": { name: "يوسف مصطفى علم الهدى عبد الواحد", total: "801", percentage: "78.53%", rank: "230" },
+           "220233": { name: "خلود أيمن راضي حسن", total: "800.5", percentage: "78.48%", rank: "231" },
+           "220261": { name: "روان ياسر محمد مصطفى", total: "800.5", percentage: "78.48%", rank: "231" },
+           "220468": { name: "محمد أسامة خالد كمال", total: "800.5", percentage: "78.48%", rank: "231" },
+           "220668": { name: "ندا نجم الدين حمدي عبد الله", total: "800.5", percentage: "78.48%", rank: "231" },
+           "220588": { name: "مريم فؤاد إبراهيم حنا رزق الله", total: "799.5", percentage: "78.38%", rank: "232" },
+           "220223": { name: "حسام أحمد عبد الله عبد الرحمن", total: "799", percentage: "78.33%", rank: "233" },
+           "220677": { name: "نور أحمد كامل أحمد", total: "799", percentage: "78.33%", rank: "233" },
+           "220581": { name: "مريم إيهاب صبحي سامي", total: "798.5", percentage: "78.28%", rank: "234" },
+           "220665": { name: "نانسي شعبان مصطفى محمد", total: "798", percentage: "78.24%", rank: "235" },
+           "220197": { name: "تسنيم جلال سيد فتح الباب", total: "797.5", percentage: "78.19%", rank: "236" },
+           "220180": { name: "بسملة حازم صلاح محمد", total: "797", percentage: "78.14%", rank: "237" },
+           "220444": { name: "لبنى طاهر محمود بخيت", total: "796.5", percentage: "78.09%", rank: "238" },
+           "220116": { name: "إسلام أسامة فواز مصطفى", total: "796", percentage: "78.04%", rank: "239" },
+           "223046": { name: "سندس أسامة عبد الجيد دياب", total: "796", percentage: "78.04%", rank: "239" },
+           "220102": { name: "أسامة راضي رمضان محمد", total: "795.5", percentage: "77.99%", rank: "240" },
+           "220056": { name: "أحمد عطية عبد الله موسى", total: "795", percentage: "77.94%", rank: "241" },
+           "220081": { name: "أحمد محمود فيصل علي", total: "795", percentage: "77.94%", rank: "241" },
+           "220447": { name: "لورا علي محمد حسن", total: "795", percentage: "77.94%", rank: "241" },
+           "220493": { name: "محمد رفاعى عيسى عبد الرحمن", total: "795", percentage: "77.94%", rank: "241" },
+           "220078": { name: "أحمد محمد فاروق عبد السلام", total: "794.5", percentage: "77.89%", rank: "242" },
+           "223074": { name: "محمد سامي أحمد كامل", total: "794.5", percentage: "77.89%", rank: "242" },
+           "223098": { name: "نورا ناجح عمر صادق", total: "794", percentage: "77.84%", rank: "243" },
+           "220157": { name: "إيفا أسامة خليل أندراوس", total: "793.5", percentage: "77.79%", rank: "244" },
+           "220196": { name: "تسنيم أحمد إبراهيم محمد", total: "793.5", percentage: "77.79%", rank: "244" },
+           "220563": { name: "محمود طلال محمد عبد العزيز سالم", total: "793.5", percentage: "77.79%", rank: "244" },
+           "220183": { name: "بسملة محمد محمد عبد اللطيف", total: "792.5", percentage: "77.70%", rank: "245" },
+           "220352": { name: "عبد الرحمن عشري عبد الرحمن إبراهيم", total: "791.5", percentage: "77.60%", rank: "246" },
+           "220376": { name: "عبد الله حسن محمد أحمد", total: "791", percentage: "77.55%", rank: "247" },
+           "220439": { name: "كلارا نبيل سامي بسكالس", total: "791", percentage: "77.55%", rank: "247" },
+           "223047": { name: "سها عبد الله عبد الرحيم محمد", total: "791", percentage: "77.55%", rank: "247" },
+           "220310": { name: "شذى بهاء محمد إسماعيل", total: "790.5", percentage: "77.50%", rank: "248" },
+           "220421": { name: "فادي أمجد شوقي حبيب", total: "790.5", percentage: "77.50%", rank: "248" },
+           "223080": { name: "محمد هاني محمد محمود فرغلي", total: "790", percentage: "77.45%", rank: "249" },
+           "220694": { name: "هاجر حلمي رمضان عبد الله", total: "789.5", percentage: "77.40%", rank: "250" },
+           "220272": { name: "ريهام عمر عبد المنعم يوسف", total: "789", percentage: "77.35%", rank: "251" },
+           "220664": { name: "نانسي رضا معتمد غطاس", total: "788.5", percentage: "77.30%", rank: "252" },
+           "220243": { name: "رحاب السيد محمد طه", total: "788", percentage: "77.25%", rank: "253" },
+           "223078": { name: "محمد محمود جبر محمود", total: "788", percentage: "77.25%", rank: "253" },
+           "220356": { name: "عبد الرحمن محمد النوبي عمران محمد", total: "786.5", percentage: "77.11%", rank: "254" },
+           "220609": { name: "مصطفى محمود عادل توفيق", total: "786.5", percentage: "77.11%", rank: "254" },
+           "220739": { name: "يوسف عبد المجيد محمد شلقامي عبد المجيد", total: "786.5", percentage: "77.11%", rank: "254" },
+           "220752": { name: "هاجر أيمن سيد فضل الكريم", total: "786.5", percentage: "77.11%", rank: "254" },
+           "220179": { name: "بسملة إسماعيل رجب إسماعيل الجندي", total: "786", percentage: "77.06%", rank: "255" },
+           "223079": { name: "محمد محمود محمد إبراهيم", total: "786", percentage: "77.06%", rank: "255" },
+           "220431": { name: "فدوى شرف محمود أحمد", total: "785.5", percentage: "77.01%", rank: "256" },
+           "223054": { name: "عبد الرحمن رجب عبد التواب محمد", total: "785.5", percentage: "77.01%", rank: "256" },
+           "220294": { name: "سما وائل صلاح مصطفى", total: "784.5", percentage: "76.91%", rank: "257" },
+           "220377": { name: "عبد الله حمدي محمد عبد الفتاح", total: "783.5", percentage: "76.81%", rank: "258" },
+           "220529": { name: "محمد فؤاد محمد عبد الواحد", total: "783", percentage: "76.76%", rank: "259" },
+           "220204": { name: "جلال عادل جلال شعبان حميدة", total: "782.5", percentage: "76.72%", rank: "260" },
+           "220258": { name: "روان رضا صفوت محمد", total: "782.5", percentage: "76.72%", rank: "260" },
+           "220442": { name: "كيرلس نصحى تاوضروس إلياس", total: "782.5", percentage: "76.72%", rank: "260" },
+           "220756": { name: "إيناس محمد الطيب محمد محمد", total: "782.5", percentage: "76.72%", rank: "260" },
+           "223011": { name: "أحمد محمد عبد التواب أحمد", total: "782.5", percentage: "76.72%", rank: "260" },
+           "220315": { name: "شهد سامح أحمد رجب", total: "782", percentage: "76.67%", rank: "261" },
+           "220256": { name: "رنا مدحت إبراهيم محمد", total: "780.5", percentage: "76.52%", rank: "262" },
+           "220234": { name: "خلود شعبان رمضان دهشان", total: "780", percentage: "76.47%", rank: "263" },
+           "220153": { name: "أندرو حزقيال شفيق اسكندر", total: "779.5", percentage: "76.42%", rank: "264" },
+           "220385": { name: "عبدالمبدى منير فخرى سيد", total: "779.5", percentage: "76.42%", rank: "264" },
+           "220555": { name: "محمود أحمد محمد عبد الغني", total: "779.5", percentage: "76.42%", rank: "264" },
+           "220436": { name: "كريم محمد هاشم أحمد", total: "779", percentage: "76.37%", rank: "265" },
+           "220580": { name: "مريم السيد رجب عبد السلام", total: "779", percentage: "76.37%", rank: "265" },
+           "220151": { name: "أنجليوس نادي عبيد حنا", total: "778.5", percentage: "76.32%", rank: "266" },
+           "220364": { name: "عبد الرحمن مصطفى محمود عيسوي", total: "778.5", percentage: "76.32%", rank: "266" },
+           "220372": { name: "عبد العزيز خميس عبد العزيز علي", total: "778.5", percentage: "76.32%", rank: "266" },
+           "223059": { name: "عصام أحمد محمد مظهر", total: "778", percentage: "76.27%", rank: "267" },
+           "220238": { name: "دعاء أيمن عويس محمود", total: "776.5", percentage: "76.13%", rank: "268" },
+           "223053": { name: "عبد الرحمن أنور شحاتة عبد القوي", total: "776.5", percentage: "76.13%", rank: "268" },
+           "220317": { name: "شهد علي عبد الفتاح زكي", total: "776", percentage: "76.08%", rank: "269" },
+           "223020": { name: "إسماعيل أيمن إسماعيل محمد", total: "776", percentage: "76.08%", rank: "269" },
+           "220536": { name: "محمد مصطفى عبد الجليل أبو الحسن", total: "775.5", percentage: "76.03%", rank: "270" },
+           "220112": { name: "إسراء عبد الحميد إبراهيم صاوي", total: "775", percentage: "75.98%", rank: "271" },
+           "220419": { name: "عوض مصطفى عوض عبد العزيز", total: "775", percentage: "75.98%", rank: "271" },
+           "220630": { name: "منة الله حسام صلاح الدين أحمد", total: "775", percentage: "75.98%", rank: "271" },
+           "220443": { name: "لبنى حسن علي عبد الظاهر", total: "774.5", percentage: "75.93%", rank: "272" },
+           "220546": { name: "محمد ياسر بسيوني رمضان حسان", total: "774.5", percentage: "75.93%", rank: "272" },
+           "220646": { name: "مي أحمد تغيان غازي", total: "774.5", percentage: "75.93%", rank: "272" },
+           "223104": { name: "يوسف رجب إبراهيم محمد", total: "774.5", percentage: "75.93%", rank: "272" },
+           "220683": { name: "نور الدين عاطف مصطفى السيد", total: "773.5", percentage: "75.83%", rank: "273" },
+           "220698": { name: "هاله محمد محمود إبراهيم الخولي", total: "773", percentage: "75.78%", rank: "274" },
+           "220708": { name: "وصال محمد السيد سيد أحمد", total: "773", percentage: "75.78%", rank: "274" },
+           "220086": { name: "أحمد نادي فرج عوض", total: "772.5", percentage: "75.74%", rank: "275" },
+           "220250": { name: "رفيدة مجدي عبد التواب سالم", total: "772.5", percentage: "75.74%", rank: "275" },
+           "223022": { name: "آلاء محمد إبراهيم عبد الجواد", total: "772.5", percentage: "75.74%", rank: "275" },
+           "223039": { name: "دينا يونس محمد حمدي", total: "772.5", percentage: "75.74%", rank: "275" },
+           "220415": { name: "عمرو محمد رشدي عبد العليم", total: "772", percentage: "75.69%", rank: "276" },
+           "220005": { name: "إبرام أيمن وليم رفلة", total: "771", percentage: "75.59%", rank: "277" },
+           "220210": { name: "جوفاني جرجس يسى سلامة", total: "771", percentage: "75.59%", rank: "277" },
+           "220361": { name: "عبد الرحمن محمد محمود عثمان", total: "771", percentage: "75.59%", rank: "277" },
+           "220084": { name: "أحمد مصطفى محمد عبد الله", total: "770", percentage: "75.49%", rank: "278" },
+           "220165": { name: "آية علي محمود علي عطية", total: "769.5", percentage: "75.44%", rank: "279" },
+           "220628": { name: "منة الله أحمد شعبان أحمد", total: "769", percentage: "75.39%", rank: "280" },
+           "220363": { name: "عبد الرحمن محمود عمر إبراهيم", total: "768", percentage: "75.29%", rank: "281" },
+           "220348": { name: "عبد الرحمن ربيعي عبد المنعم فولي", total: "767", percentage: "75.20%", rank: "282" },
+           "220583": { name: "مريم حنفي محمود خضر", total: "766", percentage: "75.10%", rank: "283" },
+           "220614": { name: "معتصم محمد مصطفى نوح", total: "765.5", percentage: "75.05%", rank: "284" },
+           "220712": { name: "يارا أحمد يوسف محمد", total: "765.5", percentage: "75.05%", rank: "284" },
+           "220291": { name: "سلمى عمرو محمد راضي عثمان", total: "765", percentage: "75.00%", rank: "285" },
+           "220343": { name: "عبد الرحمن أيمن جمعة يوسف", total: "765", percentage: "75.00%", rank: "285" },
+           "220705": { name: "هناء محسن عبد الحليم محفوظ", total: "765", percentage: "75.00%", rank: "285" },
+           "220732": { name: "يوسف حسين محمد أحمد عبد الجواد", total: "763", percentage: "74.80%", rank: "286" },
+           "220605": { name: "مصطفى فتحي محمد مرسي", total: "762.5", percentage: "74.75%", rank: "287" },
+           "220434": { name: "كرستينا ثروت إسحق ميخائيل", total: "762", percentage: "74.71%", rank: "288" },
+           "220077": { name: "أحمد محمد عبد الوهاب تمام", total: "759.5", percentage: "74.46%", rank: "289" },
+           "220596": { name: "مصطفى إسماعيل مصطفى إسماعيل", total: "758.5", percentage: "74.36%", rank: "290" },
+           "220740": { name: "يوسف عمر إبراهيم محروس", total: "758.5", percentage: "74.36%", rank: "290" },
+           "220522": { name: "محمد عماد راشد حميد", total: "758", percentage: "74.31%", rank: "291" },
+           "220040": { name: "أحمد سيد حمدان نصار", total: "756.5", percentage: "74.17%", rank: "292" },
+           "220553": { name: "محمود السيد أحمد عبد الفتاح", total: "756.5", percentage: "74.17%", rank: "292" },
+           "220280": { name: "سارة أحمد عزمى حسن", total: "756", percentage: "74.12%", rank: "293" },
+           "220663": { name: "نادر محمد عبد العظيم عبد الله", total: "756", percentage: "74.12%", rank: "293" },
+           "220733": { name: "يوسف شعبان أبو سريع عبد الله", total: "756", percentage: "74.12%", rank: "293" },
+           "223076": { name: "محمد عبد الوهاب علي عبد الهادي", total: "755", percentage: "74.02%", rank: "294" },
+           "220020": { name: "أحمد بهاء الدين أحمد جاد", total: "753", percentage: "73.82%", rank: "295" },
+           "220397": { name: "عمار أحمد حسن عبد الحافظ", total: "753", percentage: "73.82%", rank: "295" },
+           "220260": { name: "روان محمود محمد علام", total: "752.5", percentage: "73.77%", rank: "296" },
+           "220262": { name: "روضة محمد عمار محمد", total: "751.5", percentage: "73.68%", rank: "297" },
+           "220273": { name: "ريهام كرم أحمد حماد", total: "751.5", percentage: "73.68%", rank: "297" },
+           "223094": { name: "مياده شحاتة محمد علواني", total: "751.5", percentage: "73.68%", rank: "297" },
+           "220327": { name: "طارق جودة محمد أحمد", total: "751", percentage: "73.63%", rank: "298" },
+           "220446": { name: "لمى راضي فتحي إبراهيم", total: "750", percentage: "73.53%", rank: "299" },
+           "220554": { name: "محمود أيمن محمد محمد", total: "750", percentage: "73.53%", rank: "299" },
+           "220198": { name: "تسنيم حازم حماد ذكي", total: "749.5", percentage: "73.48%", rank: "300" },
+           "223097": { name: "ندى صبري محمد حسن", total: "749.5", percentage: "73.48%", rank: "300" },
+           "220199": { name: "تسنيم سيد سليمان علي", total: "749", percentage: "73.43%", rank: "301" },
+           "220380": { name: "عبد الله صبري مسعد أحمد", total: "749", percentage: "73.43%", rank: "301" },
+           "220682": { name: "نور الدين جمال السيد عبد العاطي", total: "749", percentage: "73.43%", rank: "301" },
+           "220362": { name: "عبد الرحمن محمود رمضان خليفة", total: "748.5", percentage: "73.38%", rank: "302" },
+           "220497": { name: "محمد زيدان محمد أحمد", total: "747.5", percentage: "73.28%", rank: "303" },
+           "220297": { name: "سمية عماد الدين محمد محمود", total: "746", percentage: "73.14%", rank: "304" },
+           "220437": { name: "كريم محمود رشاد خليل", total: "745.5", percentage: "73.09%", rank: "305" },
+           "220676": { name: "ندى علاء الدين حلمي علي", total: "744", percentage: "72.94%", rank: "306" },
+           "220027": { name: "أحمد حسن محمد حسن", total: "743.5", percentage: "72.89%", rank: "307" },
+           "220295": { name: "سمر ممدوح علي عبد اللاه", total: "742", percentage: "72.75%", rank: "308" },
+           "220049": { name: "أحمد عباس فاروق عباس", total: "741.5", percentage: "72.70%", rank: "309" },
+           "223021": { name: "آلاء حاتم محمد تمام", total: "740.5", percentage: "72.60%", rank: "310" },
+           "223086": { name: "محمود حسين محمود إبراهيم", total: "740.5", percentage: "72.60%", rank: "310" },
+           "220017": { name: "أحمد أيمن حسين عبد العزيز", total: "740", percentage: "72.55%", rank: "311" },
+           "220042": { name: "أحمد سيد عبد الرحمن أحمد", total: "737.5", percentage: "72.30%", rank: "312" },
+           "220103": { name: "أسامة رمضان محمود عبد الجواد", total: "737", percentage: "72.25%", rank: "313" },
+           "220117": { name: "إسلام سعيد الديب سيف", total: "736.5", percentage: "72.21%", rank: "314" },
+           "220542": { name: "محمد ناصر كريم أحمد", total: "736.5", percentage: "72.21%", rank: "314" },
+           "223029": { name: "أمير ناصر نعيم مفيد", total: "735", percentage: "72.06%", rank: "315" },
+           "220403": { name: "عمر محمد جمال عبد الوهاب", total: "734.5", percentage: "72.01%", rank: "316" },
+           "220096": { name: "أدهم محمد صفوت سعد الدين", total: "733.5", percentage: "71.91%", rank: "317" },
+           "223092": { name: "مهرائيل معنى عزيز جالي", total: "733.5", percentage: "71.91%", rank: "317" },
+           "220556": { name: "محمود تامر محمود عبد الكريم", total: "729.5", percentage: "71.52%", rank: "318" },
+           "220514": { name: "محمد عصام الدين كامل أحمد", total: "725.5", percentage: "71.13%", rank: "319" },
+           "220565": { name: "محمود علاء الدين محمد محمود", total: "721.5", percentage: "70.74%", rank: "320" },
+           "220599": { name: "مصطفى حمدي طنطاوي حدود", total: "720.5", percentage: "70.64%", rank: "321" },
+           "220340": { name: "عبد الرحمن أحمد عبد النعيم عزب", total: "720", percentage: "70.59%", rank: "322" },
+           "220711": { name: "وليد محمد عبد الحميد علي", total: "719.5", percentage: "70.54%", rank: "323" },
+           "220057": { name: "أحمد علاء عبد الوهاب علي", total: "718.5", percentage: "70.44%", rank: "324" },
+           "220126": { name: "أسماء ممدوح عبد العزيز الصاوي", total: "718", percentage: "70.39%", rank: "325" },
+           "220174": { name: "أحمد عبد العزيز عبد الحكم عبد العزيز", total: "716.5", percentage: "70.25%", rank: "326" },
+           "220389": { name: "علي رحيم علي حسين", total: "716.5", percentage: "70.25%", rank: "326" },
+           "220492": { name: "محمد رضا أحمد الإمام أحمد", total: "713.5", percentage: "69.95%", rank: "327" },
+           "220508": { name: "محمد صلاح سيد يوسف", total: "712", percentage: "69.80%", rank: "328" },
+           "220229": { name: "حمدي عبد الحميد غازي غازي", total: "710.5", percentage: "69.66%", rank: "329" },
+           "220322": { name: "شيماء فارس عبد الحليم أحمد", total: "707", percentage: "69.31%", rank: "330" },
+           "220354": { name: "عبد الرحمن فيصل محمود عبد المجيد أحمد", total: "703.5", percentage: "68.97%", rank: "331" },
+           "223103": { name: "يوسف حميد أحمد محمد", total: "700", percentage: "68.63%", rank: "332" },
+           "220006": { name: "إبراهيم أسامة محمد برهام البسيوني", total: "696.5", percentage: "68.28%", rank: "333" },
+           "220091": { name: "أحمد يحيى حسن عبد الرحمن", total: "695.5", percentage: "68.19%", rank: "334" },
+           "220104": { name: "أسامة عبد الناصر محمد عبد الحميد", total: "695.5", percentage: "68.19%", rank: "334" },
+           "223042": { name: "زياد عبد الهادي محمد عبد الهادي", total: "694", percentage: "68.04%", rank: "335" },
+           "223026": { name: "أمنية ماهر عبد الستار يوسف", total: "693.5", percentage: "67.99%", rank: "336" },
+           "220023": { name: "أحمد جمعة محمود عويس", total: "679.5", percentage: "66.62%", rank: "337" },
+           "220635": { name: "منة الله مصطفى محمود محمد", total: "679.5", percentage: "66.62%", rank: "337" },
+           "223068": { name: "مازن علي ثابت عبد اللطيف", total: "678", percentage: "66.47%", rank: "338" },
+           "220645": { name: "مؤمن محمود محمد محمود", total: "676", percentage: "66.27%", rank: "339" },
+           "220615": { name: "مغفرة أحمد حلمي إبراهيم", total: "671", percentage: "65.78%", rank: "340" },
+           "220575": { name: "مروان مجدي السيد أحمد جنيدي", total: "669.5", percentage: "65.64%", rank: "341" },
+           "220524": { name: "محمد عمر عوض عبد السميع", total: "668", percentage: "65.49%", rank: "342" },
+           "220374": { name: "عبد الله السيد عبد الله زيدان", total: "666.5", percentage: "65.34%", rank: "343" },
+           "220306": { name: "سيلفيا وجيه عياد رزق", total: "661.5", percentage: "64.85%", rank: "344" },
+           "223051": { name: "طه مصطفى عبد الله قرني", total: "657.5", percentage: "64.46%", rank: "345" },
+           "220426": { name: "فاطمة أشرف رضوان عبد الغني برعي", total: "644", percentage: "63.14%", rank: "346" },
+           "220066": { name: "أحمد فيصل أحمد محمود", total: "636.5", percentage: "62.40%", rank: "347" },
+           "223017": { name: "إسراء شعبان عبد اللاه علي", total: "636.5", percentage: "62.40%", rank: "347" },
+           "220373": { name: "عبد الله أحمد عبد الله أحمد", total: "636", percentage: "62.35%", rank: "348" },
+           "220697": { name: "هاجر مجدي محمود محمد زكي", total: "624.5", percentage: "61.23%", rank: "349" },
+           "220353": { name: "عبد الرحمن عواد عبد الفتاح أحمد", total: "617.5", percentage: "60.54%", rank: "350" },
+           "220395": { name: "علياء شعبان عبد المنعم منجود", total: "613.5", percentage: "60.15%", rank: "351" },
+           "220678": { name: "نور الدين طه محروس نصار", total: "589.5", percentage: "57.79%", rank: "352" },
+           "220247": { name: "رغد رضا شبل محمد محجوب", total: "529", percentage: "51.86%", rank: "353" },
+           "220008": { name: "إبراهيم خليفة عبد الرحمن عبد الفضيل", total: "501.5", percentage: "49.17%", rank: "354" },
+           "220478": { name: "محمد جلال إسماعيل علي", total: "368.5", percentage: "36.13%", rank: "355" },
+           "220680": { name: "نورا أحمد حنفي سيد إمام", total: "264", percentage: "25.88%", rank: "356" },
+           "220735": { name: "يوسف صادق السيد عبد العال", total: "264", percentage: "25.88%", rank: "356" },
+           "220602": { name: "مصطفى عبد الناصر رمضان أحمد", total: "259.5", percentage: "25.44%", rank: "357" },
+           "223089": { name: "مريم حسن محمد حسن", total: "259", percentage: "25.39%", rank: "358" },
+           "223096": { name: "ندى محمود أحمد عبد الله", total: "255", percentage: "25.00%", rank: "359" },
+           "220532": { name: "محمد محمود خلف عثمان", total: "247", percentage: "24.22%", rank: "360" },
+           "223045": { name: "سماح إبراهيم راشد أحمد", total: "246.5", percentage: "24.17%", rank: "361" },
+           "220339": { name: "عبد الرحمن أحمد عبد السميع صالح", total: "239", percentage: "23.43%", rank: "362" },
+           "223041": { name: "زياد حمادة خليدي عبد الصمد", total: "234", percentage: "22.94%", rank: "363" },
+           "220381": { name: "عبد الله كارم عبد التواب محمد", total: "232.5", percentage: "22.79%", rank: "364" },
+           "220045": { name: "أحمد طارق حلمي محمود رضوان", total: "229", percentage: "22.45%", rank: "365" },
+           "220328": { name: "طه علي فرغل طه", total: "178", percentage: "17.45%", rank: "366" },
+           "220288": { name: "سعد محمد سعد محمود", total: "175.5", percentage: "17.21%", rank: "367" },
+           "220149": { name: "أميرة أيمن أبو المعاطي حسين إبراهيم", total: "170.5", percentage: "16.72%", rank: "368" },
+           "223040": { name: "راشد جمال علي حسن", total: "169.5", percentage: "16.62%", rank: "369" },
+           "220557": { name: "محمود حازم حسين عبد العليم", total: "97.5", percentage: "9.56%", rank: "370" },
+           "220706": { name: "وائل مصطفى محمد عبد الفتاح", total: "46.5", percentage: "4.56%", rank: "371" },
+           "220075": { name: "أحمد محمد عبد الله حماد علي", total: "0", percentage: "0.00%", rank: "372" },
+           "220147": { name: "أمنية راني محمد موسى محمد", total: "0", percentage: "0.00%", rank: "372" },
+           "220456": { name: "مايكل ماجد أمين شحاتة", total: "0", percentage: "0.00%", rank: "372" }
+       };
+
+       const homePage = document.getElementById('homePage');
+       const resultsPage = document.getElementById('resultsPage');
+       const verificationPage = document.getElementById('verificationPage');
+       const goToResultsBtn = document.getElementById('goToResultsBtn');
+       const backToHomeBtn = document.getElementById('backToHomeBtn');
+       const backToResultsBtn = document.getElementById('backToResultsBtn');
+       const resultForm = document.getElementById('resultForm');
+       const studentIdInput = document.getElementById('studentId');
+       const emailInput = document.getElementById('emailInput');
+       const screenshotUpload = document.getElementById('screenshotUpload');
+       const resultContainer = document.getElementById('resultContainer');
+       const imagePreview = document.getElementById('imagePreview');
+       const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+       const loadingIndicator = document.getElementById('loadingIndicator');
+       const verificationResultText = document.getElementById('verificationResultText');
+
+       let currentUserUID = null;
+       let uploadedFile = null;
+       let currentStudentId = null;
+
+       // Firebase authentication on page load
+       onAuthStateChanged(auth, async (user) => {
+           if (user) {
+               currentUserUID = user.uid;
+           } else {
+               await signInAnonymously(auth);
+           }
+       });
+
+       goToResultsBtn.addEventListener('click', () => {
+           homePage.classList.remove('active');
+           resultsPage.classList.add('active');
+       });
+
+       backToHomeBtn.addEventListener('click', () => {
+           resultsPage.classList.remove('active');
+           homePage.classList.add('active');
+           document.getElementById('resultForm').style.display = 'block';
+           resultContainer.innerHTML = '';
+           studentIdInput.value = '';
+           emailInput.value = '';
+           screenshotUpload.value = '';
+       });
+
+       backToResultsBtn.addEventListener('click', () => {
+           verificationPage.classList.remove('active');
+           resultsPage.classList.add('active');
+           verificationResultText.textContent = '';
+           imagePreviewContainer.style.display = 'none';
+       });
+
+       resultForm.addEventListener('submit', async (e) => {
+           e.preventDefault();
+           const studentId = studentIdInput.value.trim();
+           const email = emailInput.value.trim().toLowerCase();
+           const screenshotFile = screenshotUpload.files[0];
+
+           resultContainer.innerHTML = '';
+
+           if (!studentId || !email || !screenshotFile) {
+               displayMessage('الرجاء إدخال جميع البيانات المطلوبة.', 'red');
+               return;
+           }
+
+           if (!studentsData[studentId]) {
+               displayMessage('رقم الجلوس غير صحيح. الرجاء التأكد منه والمحاولة مرة أخرى.', 'red');
+               return;
+           }
+
+           currentStudentId = studentId;
+           uploadedFile = screenshotFile;
+
+           resultsPage.classList.remove('active');
+           verificationPage.classList.add('active');
+
+           await analyzeImageAndDisplayResult(email);
+       });
+
+       async function analyzeImageAndDisplayResult(email) {
+           loadingIndicator.classList.remove('hidden');
+           verificationResultText.textContent = '';
+           const reader = new FileReader();
+
+           reader.onload = async (e) => {
+               imagePreview.src = e.target.result;
+               imagePreviewContainer.style.display = 'block';
+               const base64Data = e.target.result.split(',')[1];
+               const mimeType = uploadedFile.type;
+
+               const payload = {
+                   contents: [{
+                       parts: [
+                           { text: "هل تحتوي هذه الصورة على الجملة \"Beni Suef National\"؟ أجب بكلمة واحدة فقط: نعم أو لا." },
+                           { inlineData: { mimeType, data: base64Data } }
+                       ]
+                   }],
+               };
+
+               try {
+                   const response = await fetch(API_URL, {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify(payload)
+                   });
+
+                   if (!response.ok) {
+                       const errorData = await response.json();
+                       throw new Error(errorData.error.message || `API error: ${response.status}`);
+                   }
+
+                   const result = await response.json();
+                   const text = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase() || '';
+
+                   if (text === 'نعم') {
+                       verificationResultText.textContent = '✅ نعم، الصورة تحتوي على الجملة المطلوبة.';
+                       verificationResultText.className = 'text-xl font-bold text-green-600';
+                       
+                       setTimeout(async () => {
+                           await handleDatabaseCheck(email);
+                       }, 1000);
+                   } else {
+                       verificationResultText.textContent = '❌ لا، الصورة لا تحتوي على الجملة المطلوبة. الرجاء المحاولة مرة أخرى.';
+                       verificationResultText.className = 'text-xl font-bold text-red-600';
+                       loadingIndicator.classList.add('hidden');
+                   }
+               } catch (error) {
+                   console.error("Error analyzing image:", error);
+                   verificationResultText.textContent = `حدث خطأ أثناء التحقق: ${error.message}.`;
+                   verificationResultText.className = 'text-xl font-semibold text-red-500';
+                   loadingIndicator.classList.add('hidden');
+               }
+           };
+           reader.readAsDataURL(uploadedFile);
+       }
+
+       async function handleDatabaseCheck(email) {
+           if (!currentUserUID) {
+               displayMessage('حدث خطأ في المصادقة. الرجاء المحاولة مرة أخرى.', 'red');
+               return;
+           }
+
+           const userDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUserUID);
+           const userDoc = await getDoc(userDocRef);
+           let searchCount = 0;
+
+           if (userDoc.exists()) {
+               const userData = userDoc.data();
+               if (userData.email !== email) {
+                   displayMessage('البريد الإلكتروني غير مطابق للمستخدم الحالي. الرجاء استخدام نفس البريد الذي قمت بإدخاله في المرة الأولى.', 'red');
+                   return;
+               }
+               searchCount = userData.searchCount || 0;
+           } else {
+               await setDoc(userDocRef, { searchCount: 0, email: email });
+           }
+
+           if (searchCount >= 2) {
+               displayMessage('لقد تجاوزت الحد الأقصى لعدد مرات الاستعلام.', 'red');
+               return;
+           }
+
+           const newSearchCount = searchCount + 1;
+           await updateDoc(userDocRef, { searchCount: newSearchCount });
+
+           const student = studentsData[currentStudentId];
+           const remainingTries = 2 - newSearchCount;
+           displayResult(student, remainingTries);
+       }
+
+       function displayResult(student, remainingTries) {
+           resultsPage.classList.add('active');
+           verificationPage.classList.remove('active');
+           const resultCard = `
+               <div class="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-xl border border-gray-200 dark:border-gray-700 animate-fade-in">
+                   <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">${student.name}</h2>
+                   <div class="grid grid-cols-2 gap-4 text-lg">
+                       <div class="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
+                           <p class="font-semibold text-blue-800 dark:text-blue-300">المجموع الكلي:</p>
+                           <p class="font-bold text-xl">${student.total}</p>
+                       </div>
+                       <div class="p-3 bg-green-100 dark:bg-green-900/50 rounded-lg">
+                           <p class="font-semibold text-green-800 dark:text-green-300">النسبة المئوية:</p>
+                           <p class="font-bold text-xl">${student.percentage}</p>
+                       </div>
+                       <div class="p-3 bg-yellow-100 dark:bg-yellow-900/50 rounded-lg col-span-2">
+                           <p class="font-semibold text-yellow-800 dark:text-yellow-300">الترتيب:</p>
+                           <p class="font-bold text-xl">${student.rank}</p>
+                       </div>
+                   </div>
+                   <p class="text-center text-sm text-gray-500 dark:text-gray-400 mt-5">
+                       ${remainingTries >= 0 ? `تبقى لك ${remainingTries} محاولة لهذا الطالب.` : 'هذه هي آخر محاولة لك.'}
+                   </p>
+               </div>
+           `;
+           resultContainer.innerHTML = resultCard;
+           loadingIndicator.classList.add('hidden');
+       }
+
+       function displayMessage(message, color) {
+           resultsPage.classList.add('active');
+           verificationPage.classList.remove('active');
+           const messageDiv = `
+               <div class="p-4 rounded-lg text-center font-semibold
+                   ${color === 'red' ? 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300' : 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300'}">
+                   ${message}
+               </div>
+           `;
+           resultContainer.innerHTML = messageDiv;
+           loadingIndicator.classList.add('hidden');
+       }
+
+       // Initial sign-in on page load
+       signIn();
+   </script>
+</body>
+</html>
